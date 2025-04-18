@@ -1,0 +1,17 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+, "src/components/Button.jsx", "src/components/TextInput.jsx", "src/components/BackButton.jsx", "src/components/Background.jsx", "src/components/Option.jsx", "src/components/Logo.jsx", "src/components/InputField.jsx", "src/components/DatePicker.jsx", "src/components/Paragraph.jsx", "src/components/Header.jsx", "src/components/IconLongButton.jsx", "src/components/IconButton.jsx", "src/components/AvatarTitle.jsx", "src/components/Topbar.jsx", "src/components/TimePicker.jsx", "src/components/SelectInput.jsx", "src/components/CheckBoxGrid.jsx", "app/authContext.jsx", "src/screens/SafetyFindingScreen.js"  ]
+}
