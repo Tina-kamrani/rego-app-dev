@@ -11,6 +11,7 @@ import { passwordValidator } from '@/helpers/passwordValidator';
 import { AuthContext } from '@/app/authContext';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import i18n from '@/src/core/i18n';
+import Config from '@/src/config/env';
 
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
@@ -18,21 +19,29 @@ import { generatePKCE } from '../utils/pkceUtils';
 
 WebBrowser.maybeCompleteAuthSession();
 
+console.log('LoginScreen: Initializing...');
+console.log('LoginScreen: Config imported:', {
+  TENANT_ID: Config.TENANT_ID,
+  CLIENT_ID: Config.CLIENT_ID,
+  API_BASE_URL: Config.API_BASE_URL
+});
+
 // Microsoft Entra ID (Azure AD) OAuth Config
-// const TENANT_ID = 'e56302f2-6c0d-43bd-bc7a-09dcfe503cf7';
-const TENANT_ID = '2913ee49-8035-4f15-ac37-deb801e2436d';
-const Config = {
-  // CLIENT_ID: '48195ca1-022c-4c3e-a6c1-e49255494d2f',
-  CLIENT_ID: '45ba805c-cd6a-4fba-b087-78486f968910',
+const OAuthConfig = {
+  TENANT_ID: Config.TENANT_ID,
+  CLIENT_ID: Config.CLIENT_ID,
   REDIRECT_URI: 'regodemo://index',
   SCHEME: 'regodemo',
   discovery: {
-    authorizationEndpoint: `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize`,
-    tokenEndpoint: `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token`,
+    authorizationEndpoint: `https://login.microsoftonline.com/${Config.TENANT_ID}/oauth2/v2.0/authorize`,
+    tokenEndpoint: `https://login.microsoftonline.com/${Config.TENANT_ID}/oauth2/v2.0/token`,
   },
 };
 
+console.log('LoginScreen: OAuth Configuration:', OAuthConfig);
+
 export default function LoginScreen({ navigation }) {
+  console.log('LoginScreen: Component rendered');
   const { t } = useTranslation();
   const { setUserdata } = useContext(AuthContext);
   const [email, setEmail] = useState({ value: '', error: '' });
@@ -45,117 +54,146 @@ export default function LoginScreen({ navigation }) {
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
-      clientId: Config.CLIENT_ID,
-      redirectUri: Config.REDIRECT_URI,
+      clientId: OAuthConfig.CLIENT_ID,
+      redirectUri: OAuthConfig.REDIRECT_URI,
       scopes: ["openid", "profile", "email"],
       responseType: AuthSession.ResponseType.Code,
       usePKCE: true,
     },
-    Config.discovery
+    OAuthConfig.discovery
   );
 
+  console.log('LoginScreen: Auth request initialized:', {
+    clientId: OAuthConfig.CLIENT_ID,
+    redirectUri: OAuthConfig.REDIRECT_URI,
+    hasDiscovery: !!OAuthConfig.discovery
+  });
+
   useEffect(() => {
+    console.log('LoginScreen: Auth response effect triggered:', {
+      responseType: response?.type,
+      hasCode: !!response?.params?.code,
+      hasError: !!response?.error
+    });
+
     if (response?.type === "success" && response.params.code) {
+      console.log('LoginScreen: Processing successful auth response');
       setLoading(true);
       const exchangeCodeForToken = async () => {
         if (!request?.codeVerifier) {
-            console.error("Missing code verifier for PKCE");
-            setLoading(false);
-            return;
+          console.error('LoginScreen: Missing code verifier for PKCE');
+          setLoading(false);
+          return;
         }
-    
+
         try {
-            const tokenResponse = await fetch(Config.discovery.tokenEndpoint, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "Origin": "http://localhost", // ✅ Required to simulate a browser request
-                },
-                body: new URLSearchParams({
-                    client_id: Config.CLIENT_ID,
-                    redirect_uri: Config.REDIRECT_URI,
-                    grant_type: "authorization_code",
-                    code: response.params.code,
-                    code_verifier: request.codeVerifier, // PKCE verification
-                    scope: "openid profile email offline_access",
-                }).toString(),
-            });
-    
-            const tokenResult = await tokenResponse.json();
-    
-            if (tokenResult.access_token) {
-              const fetchAccessToken = async (accessToken) => {
-                // console.log("access_token: ", tokenResult.access_token);
-                try {
-                  // const response = await fetch(`https://tuumaapi.qreform.com/api/mobileapp/oauth/48195ca1-022c-4c3e-a6c1-e49255494d2f/getregotoken`, {
-                  const response = await fetch(`https://tuumaapi.qreform.com/api/mobileapp/oauth/45ba805c-cd6a-4fba-b087-78486f968910/getregotoken`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      accessToken,
-                    }),
+          console.log('LoginScreen: Exchanging code for token at:', OAuthConfig.discovery.tokenEndpoint);
+          const tokenResponse = await fetch(OAuthConfig.discovery.tokenEndpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "Origin": "http://localhost",
+            },
+            body: new URLSearchParams({
+              client_id: OAuthConfig.CLIENT_ID,
+              redirect_uri: OAuthConfig.REDIRECT_URI,
+              grant_type: "authorization_code",
+              code: response.params.code,
+              code_verifier: request.codeVerifier,
+              scope: "openid profile email offline_access",
+            }).toString(),
+          });
+
+          const tokenResult = await tokenResponse.json();
+          console.log('LoginScreen: Token exchange response:', {
+            status: tokenResponse.status,
+            hasAccessToken: !!tokenResult.access_token,
+            error: tokenResult.error
+          });
+
+          if (tokenResult.access_token) {
+            const fetchAccessToken = async (accessToken) => {
+              try {
+                const regoTokenUrl = `${Config.API_BASE_URL}mobileapp/oauth/${OAuthConfig.CLIENT_ID}/getregotoken`;
+                console.log('LoginScreen: Fetching Rego token from:', regoTokenUrl);
+                
+                const response = await fetch(regoTokenUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    accessToken,
+                  }),
+                });
+
+                const result = await response.json();
+                console.log('LoginScreen: Rego token response:', {
+                  status: response.status,
+                  hasAccessToken: !!result.access_token,
+                  error: result.error
+                });
+
+                if (response.ok && result && result.access_token) {
+                  const userData = await fetchUser(`Bearer ${result.access_token}`);
+                  console.log('LoginScreen: User data fetched:', {
+                    hasUserData: !!userData,
+                    userId: userData?.userId,
+                    username: userData?.username
                   });
 
-                  const result = await response.json();
+                  if (userData) {
+                    result.userId = userData.userId;
+                    result.username = userData.username;
+                    result.unitcode = userData.unitcode;
+                    result.email = userData.email;
+                    result.clientId = userData.clientId;
+                    result.alternativeUse = userData.alternativeUse;
 
-                  // console.log("result: ", result);
+                    await AsyncStorage.setItem(
+                      'userData',
+                      JSON.stringify({ ...result, password: password.value })
+                    );
 
-                  if (response.ok && result && result.access_token) {
-                    
-                    // Fetch user data and wait for it to complete
-                    const userData = await fetchUser(`Bearer ${result.access_token}`);
-
-                    if (userData) {
-                      result.userId = userData.userId;
-                      result.username = userData.username;
-                      result.unitcode = userData.unitcode;
-                      result.email = userData.email;
-                      result.clientId = userData.clientId;
-                      result.alternativeUse = userData.alternativeUse;
-
-                      // Store token and user data in AsyncStorage for future offline use
-                      await AsyncStorage.setItem(
-                        'userData',
-                        JSON.stringify({ ...result, password: password.value })
-                      );
-
-                      // console.log('result: ', result);
-
-                      // Store token and user data in context or AsyncStorage
-                      setUserdata(result);
-                      // console.log('User data:', result);
-
-                      // Navigate to the Initial Screen or wherever required
-                      navigation.reset({
-                        index: 0,
-                        routes: [{ name: 'InitialScreen' }], // Adjust this route as needed
-                      });
-                    } else {
-                      Alert.alert('Login failed', 'Could not fetch user data. Please try again.');
-                    }
+                    setUserdata(result);
+                    console.log('LoginScreen: Login successful, navigating to InitialScreen');
+                    navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'InitialScreen' }],
+                    });
+                  } else {
+                    console.error('LoginScreen: Failed to fetch user data');
+                    Alert.alert('Login failed', 'Could not fetch user data. Please try again.');
                   }
-                } catch(e) {
-                  console.log(e);
+                } else {
+                  console.error('LoginScreen: Failed to get Rego token:', result);
+                  Alert.alert('Login failed', 'Could not get Rego token. Please try again.');
                 }
+              } catch(e) {
+                console.error('LoginScreen: Error fetching Rego token:', e);
+                Alert.alert('Login failed', 'An error occurred while getting Rego token.');
               }
-
-              await fetchAccessToken(tokenResult.access_token);
-            } else {
-                console.error("Token Exchange Error:", tokenResult.error_description);
-                Alert.alert("Login Failed", tokenResult.error_description || "Could not get access token.");
             }
+
+            await fetchAccessToken(tokenResult.access_token);
+          } else {
+            console.error('LoginScreen: Failed to get access token:', tokenResult);
+            Alert.alert('Login failed', 'Could not get access token. Please try again.');
+          }
         } catch (error) {
-            console.error("Token Exchange Error:", error);
+          console.error('LoginScreen: Error exchanging code for token:', error);
+          Alert.alert('Login failed', 'An error occurred during authentication.');
         } finally {
           setLoading(false);
         }
       };
-         
+
       exchangeCodeForToken();
+    } else if (response?.type === "error") {
+      console.error('LoginScreen: Auth error:', response.error);
+      Alert.alert('Authentication Error', response.error.message || 'An error occurred during authentication.');
     }
-  }, [response]);  
+  }, [response, request]);
 
   const initialLogin = async () => {
     i18n.changeLanguage("fi");

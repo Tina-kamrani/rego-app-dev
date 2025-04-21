@@ -1,31 +1,37 @@
 import { Buffer } from 'buffer';
 import * as FileSystem from 'expo-file-system';
+import Config from '@/src/config/env';
 
 export const checkServerConnectivity = async () => {
   try {
-    const response = await fetch('https://tuumaapi.qreform.com/', {
+    console.log('Checking server connectivity at:', Config.API_BASE_URL);
+    const response = await fetch(Config.API_BASE_URL, {
       method: 'GET',
     });
+    console.log('Server connectivity check:', { status: response.status, ok: response.ok });
     return response.ok;
   } catch(error) {
+    console.error('Server connectivity error:', error);
     return false;
   }
 };
 
 export const fetchUserData = async (token) => {
-    const response = await fetch('https://tuumaapi.qreform.com/api/Account/GetCurrentUser', {
+    console.log('Fetching user data from:', `${Config.API_BASE_URL}Account/GetCurrentUser`);
+    const response = await fetch(`${Config.API_BASE_URL}Account/GetCurrentUser`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': token,
         },
     });
-
+    console.log('User data response:', { status: response.status, ok: response.ok });
     return response;
 };
 
 export const sendDataToServer = async (data, token, path = 2) => {
-    const response = await fetch('https://tuumaapi.qreform.com/api/Reporting/Create', {
+    console.log('Sending data to:', `${Config.API_BASE_URL}Reporting/Create`);
+    const response = await fetch(`${Config.API_BASE_URL}Reporting/Create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -33,12 +39,12 @@ export const sendDataToServer = async (data, token, path = 2) => {
         },
         body: JSON.stringify(data),
     });
+    console.log('Data send response:', { status: response.status, ok: response.ok });
     return response;
 };
 
 export const sendFilesToServer = async (data, token) => {
   try {
-
     if (!data.Files || !data.Files.length) {
       throw new Error('No files to upload');
     }
@@ -68,9 +74,8 @@ export const sendFilesToServer = async (data, token) => {
         }
 
         // Configure upload
-        const uploadUrl = `https://tuumaapi.qreform.com/api/Reporting/CreateAttachments?Id=${reportId}&ClientId=${clientId}`;
-
-        console.log("uploadUrl: ", uploadUrl);
+        const uploadUrl = `${Config.API_BASE_URL}Reporting/CreateAttachments?Id=${reportId}&ClientId=${clientId}`;
+        console.log(`Uploading file ${i + 1} to:`, uploadUrl);
         
         const maxRetries = 1;
         let attempt = 0;
@@ -237,30 +242,27 @@ export const handleSSORequest = async ({
     redirect_uri: redirectURI,
     code_verifier: codeVerifier,
     code,
-    SSOClientId: "48195ca1-022c-4c3e-a6c1-e49255494d2f",
+    SSOClientId: Config.CLIENT_ID,
   });
-  const serverURI = `https://tuumaapi.qreform.com/api/mobileapp/oauth/callback?${ssoPayload}`;
+  const serverURI = `${Config.API_BASE_URL}mobileapp/oauth/callback?${ssoPayload}`;
 
-  console.log("server_uri: ", serverURI);
+  console.log('Handling SSO request at:', serverURI);
   try {
     const response = await fetch(serverURI, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
 
-    const data = response.json();
-
-    console.log("response: ", response);
+    const data = await response.json();
+    console.log('SSO response:', { status: response.status, ok: response.ok, hasAccessToken: !!data.accessToken });
 
     if (response.ok && data.accessToken) {
       console.log("✅ Successfully logged in!");
-
-      // ✅ Store token securely
       await AsyncStorage.setItem("userToken", data.accessToken);
     } else {
       console.error("❌ Authentication failed:", data);
     }
   } catch(e) {
-    console.log("SSO error: ", e);
+    console.error("SSO error:", e);
   }
-}
+};
