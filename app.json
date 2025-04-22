@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TuumaMobile",
-    "slug": "TuumaMobile",
+    "slug": "rego-app-dev",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,10 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tuuma.mobile"
+      "bundleIdentifier": "com.tuuma.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +40,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "d84c9186-a3fb-456f-b8b9-195e3ae24a7f"
+        "projectId": "8e52f715-7aa2-4de3-8462-b6a2c20d48e9"
       },
       "development": {
         "TENANT_ID": "e56302f2-6c0d-43bd-bc7a-09dcfe503cf7",
@@ -50,12 +53,12 @@
         "API_BASE_URL": "https://tuumaapi.qreform.com/api/"
       }
     },
-    "owner": "rego-app",
+    "owner": "tinakamrani3",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/d84c9186-a3fb-456f-b8b9-195e3ae24a7f"
+      "url": "https://u.expo.dev/8e52f715-7aa2-4de3-8462-b6a2c20d48e9"
     }
   }
 }

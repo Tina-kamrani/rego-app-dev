@@ -34,7 +34,7 @@ const defaultConfig = {
     CLIENT_ID: "48195ca1-022c-4c3e-a6c1-e49255494d2f",
     API_BASE_URL: "https://regotestapi.qreform.com/api/",
   },
-
+  REDIRECT_URI: 'regoapp://index',
   production: {
     TENANT_ID: "2913ee49-8035-4f15-ac37-deb801e2436d",
     CLIENT_ID: "45ba805c-cd6a-4fba-b087-78486f968910",

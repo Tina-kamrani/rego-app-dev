@@ -40,6 +40,10 @@ const OAuthConfig = {
 
 console.log('LoginScreen: OAuth Configuration:', OAuthConfig);
 
+const MemoizedComponent = React.memo(({ prop }) => {
+  // Component logic
+});
+
 export default function LoginScreen({ navigation }) {
   console.log('LoginScreen: Component rendered');
   const { t } = useTranslation();
@@ -334,6 +338,15 @@ export default function LoginScreen({ navigation }) {
   useEffect(() => {
     initialLogin();
   }, []);
+
+  useEffect(() => {
+    console.log('LoginScreen: State updated:', { email, password, loading });
+  }, [email, password, loading]);
+
+  useEffect(() => {
+    console.log('LoginScreen: Deep link received:', response);
+    // Handle deep link
+  }, [response]);
 
   return (
     <>
